@@ -1,0 +1,200 @@
+// TODO make the class names and route strings actually use templated values from haskell
+
+// So this is how to do object oriented programming in Javascript:
+// You create a function, which will return an object (which is more like a hashmap in javascript).
+// Within the function you create an empty object as a "const"! and then you can add values as fields
+// and functions as methods to this object and in the end you return it.
+
+// I think using "self" as the object name is a pretty good idea, because it resembles the python
+// class syntax a lot and it does not collide with the actual syntax word "this".
+
+/**
+ * This is the class, which represents the chat on the client side. This class encapsulates all the
+ * functionality, which is needed for the chat.
+ *
+ * A chat object can be instantiated by passing the username to the constructor. The username should
+ * not be changed after that!
+ */
+function Chat(username) {
+
+    const self = {};
+
+    // PUBLIC MEMBERS
+
+    self.username = username;
+    // This is the integer index, which denotes which index the last chat message has.
+    // The chat always keeps track of the index of the last message that is currently displayed. During
+    // an "update" call this index is sent to the server. The server will query all messages, that have
+    // an index greater than the given one. This is how the server sends which *new* messages to send.
+    self.index = 0;
+    // This will save a complete list of all the message objects that are in the chat. A message object
+    // has two string fields: "content" for the actual message and "username" with the string name of the
+    // user, who has posted the message
+    self.messages = [];
+    // So this list will contain jQuery DOM nodes. Each of these nodes will be a single "div". These
+    // nodes represent the new chat messages, which have been fetched using the "update" method.
+    // these nodes will need to be used to actually modify the DOM of the page!
+    self.newMessageElements = [];
+
+    // PRIVATE MEMBERS
+    // Note: these are not actually private in the sense, that they cannot be accessed from the outside
+    // scope, I am merely using the naming convention with the underscore to signal them as private
+    self._updateRoute = "/update";
+    self._postRoute = "/post";
+
+    // METHODS
+
+    // Let's talk about "Promises"
+    // So as far as I have understood it, Promises are a lot like Events. Why even use Events?
+    // Well when making an AJAX call for example, this call should not be done in the main execution
+    // thread, because that would completely freeze the website. Instead these ajax calls are being
+    // done in separate threads. But the problem is: How do you react to the response of the call if
+    // it just finishes in another thread? The answer is, that it fires an event and you have previously
+    // hooked a callback to this event.
+    // Now promises also work like that. They are objects to which you can register "followup" functions
+    // in this very example the return of the axios.get() function is a Promise and you can attach a
+    // callback to it by calling the "then(cb)" function on the promise. You can also register a separate
+    // function for the case that the computation (in this case the network request) fails using "catch(cb)"
+    /**
+     * This function makes an AJAX call to the update URL if the website. This url is used to request
+     * new messages, which have been posted since the last update.
+     * Returns "axios" GET Promise.
+     *
+     * @returns {ActiveX.IXMLDOMNode | Promise<any> | any | string | IDBRequest<any | undefined> | FormDataEntryValue | Function | Promise<Credential | null>}
+     * @private
+     */
+    self._updatePromise = function () {
+
+        return axios.get(self._updateRoute, {
+            params: {
+                username:   self.username,
+                index:      self.index
+            }
+        })
+    };
+
+    /**
+     * This function makes an AJAX call to the post URL of the website. This url is used to post new messages
+     * to the chat. The server will receive the message and save it into the database.
+     * This method expects the content of the message to be posted as a parameter.
+     *
+     * @param content
+     * @returns {ActiveX.IXMLDOMNode | Promise<any> | any | string | IDBRequest<any | undefined> | FormDataEntryValue | Function | Promise<Credential | null>}
+     * @private
+     */
+    self._postPromise = function (content) {
+        return axios.get(self._postRoute, {
+            params: {
+                username:   self.username,
+                content:    content
+            }
+        })
+    };
+
+    /**
+     * This function posts a new message to the server with the given content.
+     *
+     * @param content
+     */
+    self.post = function (content) {
+        self._postPromise(content).then( function () {
+            console.log(`posted message with content ${content}`);
+        })
+    };
+
+    /**
+     * Given a list of objects, where each object represents a new message, that has been fetched by the
+     * "update" call, this method will update the inner fields of the object accordingly.
+     *
+     * The new messages will be appended to the internal message list.
+     * Also a new list of DOM nodes is created from these new messages.
+     *
+     * @param messages
+     */
+    self.updateMessages = function(messages) {
+        self.messages = self.messages.concat(messages);
+        // Creating a list of HTML elements for these messages
+        self.newMessageElements = messages.map(function (message) {
+            return $(`<div class="chat-message">${message.username}: ${message.content}</div>`);
+        });
+        self.index += messages.length;
+    };
+
+    /**
+     * This function initiates the updateLoop for the DOM. The update function is called and in the callback
+     * of this update, this function calls itself recursively with a time delay of 100ms.
+     * This function expects the parameter "callback" which is a function with one argument. This function
+     * will be executed with the whole chat object as parameter during every update cycle. This enables the
+     * outer scope to have some custom code executed during every update cycle.
+     *
+     * @param callback
+     */
+    self.updateLoop = function (callback) {
+        self._updatePromise().then(function (response) {
+            let newMessages = response.data.messages;
+            self.updateMessages(newMessages);
+            callback(self);
+            setTimeout(function () {
+                self.updateLoop(callback);
+            }, 100);
+        })
+    };
+
+    return self;
+}
+
+// Defining some useful "global" variables.
+// It is way more performant to save them into variables once. This way jQuery does not have to search
+// the whole DOM every time, these elements are used...
+let chatWindow = $('.chat-window');
+let inputUsername = $('.username input');
+let inputMessage = $('.chat-input input');
+
+/**
+ * This function will be callback for the "updateLoop" method of the chat object. It will append all the
+ * new DOM nodes of the current update cycle to the main chat window.
+ *
+ * @param chat
+ */
+let updateDisplay = function (chat) {
+    chatWindow.append(chat.newMessageElements);
+};
+
+
+// So the way the chat is supposed to work is: You choose a username when coming to the page and with
+// this username you log into the chat. After that you are not supposed to change that username again
+// During the same chat window is open (but you can reload the page and log in with a new username)
+// Thus all the chat functionality is only registered following the case, that the username has been
+// chosen
+/**
+ * This is the callback for the event, that the username has been chosen.
+ * It will initiate the chat update loop and enable entering of messages.
+ */
+let usernameChosen = function() {
+    // The contents of this function are of course only executed, if the input has not been disabled yet
+    // (this prevents changing the username)
+    if (! inputUsername.prop('disable')){
+
+        // Getting the username from the input field. With this username a new chat object can be created
+        // and the chat loop can be started
+        let username = inputUsername.val();
+        let chat = Chat(username);
+        chat.updateLoop(updateDisplay);
+
+        // Registering the callback for posting a message.
+        let postCallback = function(event) {
+            if (event.keyCode === 13) {
+                let content = inputMessage.val();
+                chat.post(content);
+                inputMessage.val('')
+            }
+        };
+
+        inputMessage.keypress(postCallback);
+        inputUsername.prop('disable', true);
+    }
+};
+
+$('.username button').on("click", usernameChosen);
+
+

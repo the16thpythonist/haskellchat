@@ -1,0 +1,6 @@
+
+<div .chat-container>
+    <div .info>
+        This will display some info text about the website
+    ^{chat}
+

@@ -1,0 +1,31 @@
+version: '3'
+
+volumes:
+    local_postgres_data: {}
+
+services:
+  haskell:
+    build:
+      context: .
+      dockerfile: compose/local/haskell/Dockerfile
+    image: haskellchat_local_haskell
+    volumes:
+      - .:/app
+    env_file:
+      - ./.envs/.local/.haskell
+      - ./.envs/.local/.postgres
+    ports:
+      - "8000:8000"
+      - "3000:3000"
+    command: /start
+    depends_on:
+      - postgres
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+    env_file:
+      - ./.envs/.local/.postgres

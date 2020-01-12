@@ -1,0 +1,15 @@
+<div .header-container>
+    <div .header>
+        <div .logo>
+            HaskellChat
+        <div .nav>
+            <div .nav-item>
+                Home
+
+<div .content-container>
+    <div .content>
+        ^{widget}
+
+<div .footer-container>
+    <div .footer>
+        This is the footer

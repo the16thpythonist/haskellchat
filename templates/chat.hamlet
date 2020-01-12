@@ -1,0 +1,8 @@
+<div .chat>
+    <div .username>
+        <input type="text" placeholder="Choose your name">
+        <button>
+            Login
+    <div .chat-window>
+    <div .chat-input>
+        <input type="text" placeholder="Your message">

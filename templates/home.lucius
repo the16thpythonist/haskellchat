@@ -1,0 +1,29 @@
+body {
+    margin: 0;
+}
+
+/* Defining the width of the main view */
+.content-container,
+.footer-container,
+.header-container {
+    margin-right: 10%;
+    margin-left: 10%;
+}
+
+.header {
+    background-color: limegreen;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 10px 40px 10px 40px;
+}
+
+.content {
+    background-color: #e74c3c;
+    height: 700px;
+    padding: 50px;
+}
+
+.footer {
+    background-color: wheat;
+}

@@ -1,0 +1,3 @@
+FROM postgres:10.5
+
+RUN printf "FINSIHED POSTGRES BUILD\n"
