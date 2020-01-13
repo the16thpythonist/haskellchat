@@ -25,6 +25,7 @@ data Chat = Chat
     { chatConnPool      :: ConnectionPool
     , chatHttpManager   :: Manager
     , chatLogger        :: Logger
+    , appSettings       :: AppSettings
     }
 
 -- This function sets up the "Chat" data type as the yesod fundation data type. Using the
@@ -58,8 +59,12 @@ instance RenderMessage Chat FormMessage where
     renderMessage _ _ = defaultFormMessage
 
 
+-- Making the foundation data type "Chat" an instance of the "YesodPersist" type class.
+-- This will enable the usage of the persistent database models within this application.
 instance YesodPersist Chat where
     type YesodPersistBackend Chat = SqlBackend
+    -- The runDB method will have to be used in every Handler function to run queries of any
+    -- type against the database.
     runDB :: SqlPersistT Handler a -> Handler a
     runDB action = do
         master <- getYesod

@@ -28,6 +28,12 @@ import Network.Wai.Middleware.RequestLogger (Destination (Logger),
                                              mkRequestLogger, outputFormat)
 import System.Log.FastLogger                (defaultBufSize, newStdoutLoggerSet,
                                              toLogStr)
+
+-- We need this because the database expects the database string to be a bytestring and
+-- thus we have to use pack to convert the string we are getting from the settings into
+-- a bytestring...
+import qualified Data.ByteString.Char8 as BS
+
 -- Importing all the relevant handlers
 import Handler.Chat
 import Handler.Post
@@ -51,8 +57,22 @@ import Handler.Update
 mkYesodDispatch "Chat" resourcesChat
 
 
-makeFoundation :: IO Chat
-makeFoundation = do
+-- So here is how I have understood this working: This function is supposed to return an
+-- actual instance of the foundation data type "Chat". So creating an instance of a data type
+-- is pretty straight forward in haskell, we would simply call "Chat field1 field2 field3..."
+-- pass all the required fields to the "constructor" of the data type.
+-- But hold on now! When we look at this function we dont see any place where we explicitly
+-- pass all the arguments to "Chat"... The only thing we see is "Chat {..}". Here is how I have
+-- understood this: This is whats enables by the "{# LANGUAGE RecordWildCards #}" pragma up top
+-- Essentially it automatically takes all the right arguments to the "constructor" from all the
+-- variables which are in scope and match the *exact* name of the fields as they are in the data
+-- types definition!
+-- So it is enough to just load all these parameters as variables into the same function scope
+-- and they will be used automatically to create the Chat instance
+-- | This function creates an actual instance of the foundation data type "Chat". It takes the
+--   settings instance as an argument
+makeFoundation :: AppSettings -> IO Chat
+makeFoundation appSettings = do
     -- Some basic initializations: HTTP connection manager, logger, and static
     -- subsite.
     chatHttpManager <- getGlobalManager
@@ -71,9 +91,12 @@ makeFoundation = do
         logFunc = messageLoggerSource tempFoundation chatLogger
 
     -- Create the database connection pool
+    -- The database string, containing the host, port, username, password etc for the
+    -- connection to the database is fetched from the app settings instance, which has
+    -- benn previously loaded from the env variables
     pool <- flip runLoggingT logFunc $ createPostgresqlPool
-        ("postgres://debug:debug@postgres:5432/haskellchat")
-        (10)
+        (BS.pack $ appDatabaseString appSettings)
+        (appDatabasePoolSize appSettings)
 
     -- Perform database migration using our application's logging settings.
     runLoggingT (runSqlPool (runMigration migrateAll) pool) logFunc
@@ -82,7 +105,9 @@ makeFoundation = do
     return $ mkFoundation pool
 
 
+-- | This is the main function executed by the Haskell compiler
 chatMain :: IO ()
 chatMain = do
-    foundation <- makeFoundation
+    settings <- makeSettings
+    foundation <- makeFoundation settings
     warp 3000 foundation
