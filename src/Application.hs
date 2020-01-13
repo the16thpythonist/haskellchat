@@ -110,4 +110,4 @@ chatMain :: IO ()
 chatMain = do
     settings <- makeSettings
     foundation <- makeFoundation settings
-    warp 3000 foundation
+    warp (appPort $ appSettings foundation) foundation

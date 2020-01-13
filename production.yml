@@ -7,7 +7,7 @@ services:
   haskell:
     build:
       context: .
-      dockerfile: compose/local/haskell/Dockerfile
+      dockerfile: compose/production/haskell/Dockerfile
     image: haskellchat_production_haskell
     volumes:
       - .:/app

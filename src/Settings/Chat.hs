@@ -15,6 +15,10 @@ import           Yesod.Default.Util (WidgetFileSettings,
 -- configuration for our web app entirely from the env variables...
 import           System.Environment
 
+-- All env variables are read as strings, but some of them actually describe Integers, so we need
+-- to parse the integers from the strings using the "read" function.
+import           Text.Read
+
 -- DEFINING THE SETTINGS
 
 data AppSettings = AppSettings
@@ -39,7 +43,7 @@ makeSettings = do
     poolsize <- getEnv "POSTGRES_POOLSIZE"
     port <- getEnv "APPLICATION_PORT"
     let appDatabasePoolSize = read poolsize
-        appDatabasePort = read port
+        appPort = read port
     return $ AppSettings {..}
 
 appDatabaseString :: AppSettings -> String
